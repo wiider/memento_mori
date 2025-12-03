@@ -1,22 +1,111 @@
 <!DOCTYPE html>
-<html lang ="en">
-
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE-edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Tutorial</title>
+  <meta charset="UTF-8" />
+  <title>Video Player</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: black;
+      overflow: hidden;
+    }
+    #wrapper {
+      position: fixed;
+      inset: 0;
+    }
+    #ytplayer {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+  </style>
 </head>
-
 <body>
-<iframe width="560" height="315" 
-  src="https://www.youtube.com/embed/l0gokKjzH6s?si=9UFcRSVQsc8cyWlr" 
-  title="YouTube video player" frameborder="0" 
-  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
-  </iframe>
-  
-</body>
+  <div id="wrapper">
+    <!-- Der IFrame wird von der YouTube API übernommen -->
+    <div id="ytplayer"></div>
+  </div>
 
-</html>  
+  <!-- YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    // 🔹 1. Konfiguration: Fallback-Liste von Videos (wenn kein ?v gesetzt ist)
+    const fallbackVideos = [
+      "l0gokKjzH6s", // Beispiel 1
+      "dQw4w9WgXcQ"  // Beispiel 2
+      // hier kannst du mehr VIDEO_IDs eintragen
+    ];
+
+    // 🔹 2. Hilfsfunktionen für URL-Parameter
+    function getQueryParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name);
+    }
+
+    function pickVideoId() {
+      // Priorität 1: ?v=VIDEO_ID
+      const directId = getQueryParam("v");
+      if (directId) return directId;
+
+      // Priorität 2: ?n=index aus der Fallback-Liste
+      const indexParam = getQueryParam("n");
+      if (indexParam !== null) {
+        const idx = parseInt(indexParam, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < fallbackVideos.length) {
+          return fallbackVideos[idx];
+        }
+      }
+
+      // Priorität 3: zufälliges Fallback-Video
+      if (fallbackVideos.length > 0) {
+        const r = Math.floor(Math.random() * fallbackVideos.length);
+        return fallbackVideos[r];
+      }
+
+      // Falls alles schiefgeht → irgendein Default (oder null)
+      return "l0gokKjzH6s";
+    }
+
+    let player;
+    const videoId = pickVideoId();
+
+    // 🔹 3. Diese Funktion wird von der YouTube IFrame API aufgerufen
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player("ytplayer", {
+        videoId: videoId,
+        playerVars: {
+          autoplay: 1,
+          mute: 1,          // wichtig für Autoplay
+          controls: 0,      // keine YouTube-Controls
+          rel: 0,
+          showinfo: 0,
+          modestbranding: 1,
+          playsinline: 1
+        },
+        events: {
+          onReady: onPlayerReady
+        }
+      });
+    }
+
+    // 🔹 4. Wenn der Player bereit ist: Video starten (muted)
+    function onPlayerReady(event) {
+      try {
+        event.target.mute();       // sicherheitshalber nochmal
+        event.target.playVideo();  // Start
+      } catch (e) {
+        console.warn("Konnte Video nicht automatisch starten:", e);
+      }
+    }
+
+    // (Optional) Du kannst später von Unreal aus JS aufrufen,
+    // um den Ton zu aktivieren, z.B.:
+    // function unmute() { player.unMute(); }
+  </script>
+</body>
+</html>
+
