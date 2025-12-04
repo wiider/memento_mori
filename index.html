@@ -33,7 +33,7 @@
   <script src="https://www.youtube.com/iframe_api"></script>
 
   <script>
-    // 🔹 1. Konfiguration: Fallback-Liste von Videos (wenn kein ?v gesetzt ist)
+    // 🔹 1. Konfiguration: Fallback-Liste von Videos (wenn kein Parameter gesetzt ist)
     const fallbackVideos = [
       "l0gokKjzH6s", // Beispiel 1
       "dQw4w9WgXcQ"  // Beispiel 2
@@ -46,12 +46,57 @@
       return url.searchParams.get(name);
     }
 
-    function pickVideoId() {
-      // Priorität 1: ?v=VIDEO_ID
-      const directId = getQueryParam("v");
-      if (directId) return directId;
+    // 🔹 3. Video-ID aus verschiedenen Eingabeformen extrahieren
+    // - reine ID: "l0gokKjzH6s"
+    // - watch-URL: "https://www.youtube.com/watch?v=l0gokKjzH6s&..."
+    // - short URL: "https://youtu.be/l0gokKjzH6s?..."
+    function extractVideoId(input) {
+      if (!input) return null;
 
-      // Priorität 2: ?n=index aus der Fallback-Liste
+      // trim
+      input = input.trim();
+
+      // 3a) Wenn es wie eine volle URL aussieht
+      try {
+        const u = new URL(input);
+
+        // youtube.com/watch?v=...
+        if (u.hostname.includes("youtube.com")) {
+          const v = u.searchParams.get("v");
+          if (v) return v;
+        }
+
+        // youtu.be/VIDEO_ID
+        if (u.hostname === "youtu.be") {
+          const parts = u.pathname.split("/");
+          if (parts.length > 1 && parts[1].length > 0) {
+            return parts[1];
+          }
+        }
+      } catch (e) {
+        // war keine URL, ignorieren wir – könnte eine rohe ID sein
+      }
+
+      // 3b) Falls wir hier sind: einfach zurückgeben, vielleicht ist es schon die ID
+      return input;
+    }
+
+    function pickVideoId() {
+      // Priorität 1: ?video= (kann ID ODER volle URL sein)
+      const videoParam = getQueryParam("video");
+      if (videoParam) {
+        const id = extractVideoId(videoParam);
+        if (id) return id;
+      }
+
+      // Priorität 2: ?v= (ebenfalls ID ODER volle URL)
+      const vParam = getQueryParam("v");
+      if (vParam) {
+        const id = extractVideoId(vParam);
+        if (id) return id;
+      }
+
+      // Priorität 3: ?n=index aus der Fallback-Liste
       const indexParam = getQueryParam("n");
       if (indexParam !== null) {
         const idx = parseInt(indexParam, 10);
@@ -60,20 +105,20 @@
         }
       }
 
-      // Priorität 3: zufälliges Fallback-Video
+      // Priorität 4: zufälliges Fallback-Video
       if (fallbackVideos.length > 0) {
         const r = Math.floor(Math.random() * fallbackVideos.length);
         return fallbackVideos[r];
       }
 
-      // Falls alles schiefgeht → irgendein Default (oder null)
+      // Fallback-Fallback
       return "l0gokKjzH6s";
     }
 
     let player;
     const videoId = pickVideoId();
 
-    // 🔹 3. Diese Funktion wird von der YouTube IFrame API aufgerufen
+    // 🔹 4. Diese Funktion wird von der YouTube IFrame API aufgerufen
     function onYouTubeIframeAPIReady() {
       player = new YT.Player("ytplayer", {
         videoId: videoId,
@@ -92,7 +137,7 @@
       });
     }
 
-    // 🔹 4. Wenn der Player bereit ist: Video starten (muted)
+    // 🔹 5. Wenn der Player bereit ist: Video starten (muted)
     function onPlayerReady(event) {
       try {
         event.target.mute();       // sicherheitshalber nochmal
